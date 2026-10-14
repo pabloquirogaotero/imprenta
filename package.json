@@ -1,0 +1,14 @@
+{
+  "name": "imprenta",
+  "private": "true",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "hono": "^4.13.13"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.0"
+  }
+}
