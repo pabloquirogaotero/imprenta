@@ -8,6 +8,22 @@ export const serialize = (content) => JSON.stringify(content, withoutPrivate);
 
 export const pathKey = (path) => path.join('.');
 
+let nextId = 0;
+
+export const newKey = () => `k${++nextId}`;
+
+function addKeys(fields, value) {
+    for (const field of fields) {
+        if (field.type !== 'collection') continue;
+        if (!Array.isArray(value[field.name])) value[field.name] = [];
+        for (const item of value[field.name]) {
+            item._key = newKey();
+            addKeys(field.itemFields, item); // nested collections too
+        }
+    }
+    return value;
+}
+
 export class EditorState {
     // $state makes a value "reactive": when it changes, the page parts using it update.
     // With objects and arrays it reaches every level, so `content.inicio.collages.push(x)`
@@ -23,7 +39,7 @@ export class EditorState {
         this.config = data.config;
         const content = {};
         for (const section of data.config.sections) {
-            content[section.name] = { ...(data.content[section.name] ?? {}) };
+            content[section.name] = addKeys(section.fields, { ...(data.content[section.name] ?? {}) });
         }
         this.content = content;
         this.original = serialize(this.content);
