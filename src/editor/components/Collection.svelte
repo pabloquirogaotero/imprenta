@@ -2,6 +2,7 @@
     import { tick } from 'svelte';
     import { emptyItem, labelFor } from '../../shared/schema.js';
     import { newKey } from '../lib/editor.svelte.js';
+    import { sortable } from '../lib/sortable.js';
     import Field from './Field.svelte';
     
     let { field, items, path } = $props();
@@ -39,6 +40,11 @@
         if (!confirm(`¿Eliminar «${title(items[index], index)}»?`)) return;
         items.splice(index, 1);
     }
+
+    function move(from, to) {
+        const [item] = items.splice(from, 1);
+        items.splice(to, 0, item);
+    }
 </script>
 
 <div class="bg-base-200 rounded-box p-3">
@@ -51,7 +57,7 @@
             Añadir {itemLabel}
         </button>
     </div>
-    <div class="flex flex-col gap-2" bind:this={list}>
+    <div class="flex flex-col gap-2" bind:this={list} use:sortable={move}>
         <!--
             (item._key) tells Svelte which card is which, so reordering moves the existing
             cards instead of rebuilding them (an open card stays open).
@@ -62,6 +68,25 @@
             data-key={item._key}
             >
                 <summary class="flex items-center gap-2 p-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                    <!--
+                        The six-dot drag handle. preventDefault stops a click on it from also
+                        opening/closing the card.
+                    -->
+                    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                    <span
+                      class="js-drag-handle cursor-grab touch-none text-base-content/40 p-1 -m-1"
+                      title="Arrastra para cambiar el orden"
+                      onclick={(e) => e.preventDefault()}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none" />
+                            <circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none" />
+                        </svg>
+                    </span>
                     <span class="flex-1 text-sm font-medium truncate">{title(item, index)}</span>
                     <!-- Delete. stopPropagation keeps the click from toggling the card too. -->
                     <button
