@@ -1,3 +1,9 @@
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+
+const COOKIE = 'cms_session'; // the session cookie's name
+const SHORT_SESSION = 60 * 60 * 12; // 12 hours, in seconds
+const LONG_SESSION = 60 * 60 * 24 * 30; // 30 days, with "Recordarme" ticked
+
 const encoder = new TextEncoder();
 
 // ---- Base64 helpers. -------------------------------------------------------
@@ -15,6 +21,9 @@ function fromB64(s) {
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
 }
+
+const toB64Url = (bytes) => toB64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const fromB64Url = (s) => fromB64(s.replace(/-/g, '+').replace(/_/g, '/'));
 
 function timingSafeEqual(a, b) {
     if (a.length !== b.length) return false;
@@ -40,4 +49,55 @@ export async function verifyPassword(password, stored) {
 
 export async function getUser(env, email) {
     return env.USERS.get(`user:${email.trim().toLowerCase()}`, 'json');
+}
+
+// ---- Sessions. -------------------------------------------------------------
+
+async function hmacKey(secret) {
+    return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
+        'sign',
+        'verify',
+    ]);
+}
+
+export async function startSession(c, email, remember) {
+    const maxAge = remember ? LONG_SESSION : SHORT_SESSION;
+    const payload = toB64Url(encoder.encode(JSON.stringify({ e: email, x: Date.now() + maxAge * 1000 })));
+    const signature = await crypto.subtle.sign('HMAC', await hmacKey(c.env.SESSION_SECRET), encoder.encode(payload));
+    setCookie(c, COOKIE, `${payload}.${toB64Url(signature)}`, {
+        httpOnly: true, // JavaScript on the page can't read it, so an injected script can't steal it
+        secure: true, // only sent over HTTPS
+        sameSite: 'Strict', // not sent when another site makes the request (stops CSRF)
+        path: '/',
+        // With maxAge the cookie survives closing the browser. Without it, the browser
+        // deletes it on close (and the expiry inside caps it at 12 hours anyway).
+        ...(remember ? { maxAge } : {}),
+    });
+}
+
+export function endSession(c) {
+    deleteCookie(c, COOKIE, { path: '/', secure: true });
+}
+
+export async function currentUser(c) {
+    const cookie = getCookie(c, COOKIE);
+    if (!cookie) return null;
+    const [payload, signature] = cookie.split('.');
+    if (!payload || !signature) return null;
+    let valid = false;
+    try {
+        valid = await crypto.subtle.verify(
+            'HMAC',
+            await hmacKey(c.env.SESSION_SECRET),
+            fromB64Url(signature),
+            encoder.encode(payload),
+        );
+    } catch {
+        return null; // a cookie that isn't even valid base64
+    }
+    if (!valid) return null;
+    
+    const data = JSON.parse(new TextDecoder().decode(fromB64Url(payload)));
+    if (Date.now() > data.x) return null; // expired
+    return getUser(c.env, data.e);
 }
