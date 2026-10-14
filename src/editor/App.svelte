@@ -3,6 +3,7 @@
     import { api, setUnauthenticatedHandler } from './lib/api.js'; 
     import { flash, clearFlash, showFlash } from './lib/flash.svelte.js';
     import Login from './components/Login.svelte';
+    import Editor from './components/Editor.svelte';
 
     let me = $state(null); // the signed-in user { name, email }, or null
     let checking = $state(true); // still asking the server who we are
@@ -92,7 +93,7 @@
                 <span class="loading loading-spinner loading-lg"></span>
             </div>
         {:else if me}
-            <p class="max-w-4xl mx-auto px-4 py-10">Has entrado como {me.name}. El editor llega en el siguiente paso.</p>
+            <Editor />
         {:else}
             <Login onLogin={(user) => (me = user)} />
         {/if}
