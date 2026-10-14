@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+
+@plugin "daisyui" {
+    themes: cmyk --default;
+}
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans',ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+      'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+.sortable-ghost {
+    opacity: 0.4;
+}
+
+.sortable-chosen {
+    cursor: grabbing;
+}

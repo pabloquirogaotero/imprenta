@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const NAME = /^[A-Za-Z][0-9A-Za-Z]*$/;
+const NAME = /^[A-Za-z][0-9A-Za-z]*$/;
 const FILE = /^[0-9a-z][-0-9a-z]*\.json$/;
 const DIR = /^[-0-9A-Za-z_]+(\/[-0-9A-Za-z_]+)*$/;
 

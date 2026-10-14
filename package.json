@@ -3,14 +3,23 @@
   "private": "true",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "vite build && concurrently -k -n worker,editor \"wrangler dev --port 8787\" \"vite\"",
+    "build": "vite build",
     "user:add": "node scripts/add-user.mjs"
   },
   "dependencies": {
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
     "hono": "^4.13.13",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "concurrently": "^10.0.6",
+    "daisyui": "^5.7.50",
+    "svelte": "^5.57.2",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.4",
     "wrangler": "^4.151.0"
   }
 }
