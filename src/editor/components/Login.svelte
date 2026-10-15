@@ -21,14 +21,17 @@
             onLogin(user);
         } catch (e) {
             // Pick the message from the status code. The server never says whether it was the
-            // email or the password that was wrong, and neither do we.
+            // email or the password that was wrong, and neither do we. Anything other than
+            // these known answers is a real problem, not a wrong password, so don't blame her.
             const status = e instanceof ApiError ? e.status : 0;
             error =
-                status === 429
-                    ? 'Demasiados intentos. Espera 15 minutos y vuelve a probar.'
-                    : status === 0
-                        ? 'No hay conexión. Comprueba tu internet y vuelve a probar.'
-                        : 'El correo o la contraseña no son correctos.';
+                status === 401 || status === 400
+                    ? 'El correo o la contraseña no son correctos.'
+                    : status === 429
+                        ? 'Demasiados intentos. Espera 15 minutos y vuelve a probar.'
+                        : status === 0
+                            ? 'No hay conexión. Comprueba tu internet y vuelve a probar.'
+                            : 'Algo ha fallado al entrar. Inténtalo de nuevo en un momento.';
             password = '';
         }
         busy = false;

@@ -27,7 +27,15 @@
 
     async function logout() {
         if (menu) menu.open = false;
-        await api.logout().catch(() => {});
+        try {
+            // Only the server can delete the session cookie (it's HttpOnly, so this page
+            // can't touch it). If the request fails, the cookie is still there: say so,
+            // instead of pretending she's signed out when a refresh would sign her back in.
+            await api.logout();
+        } catch {
+            showFlash('error', 'No se ha podido cerrar la sesión. Comprueba tu conexión e inténtalo de nuevo.');
+            return;
+        }
         me = null;
         showFlash('success', 'Has cerrado la sesión.');
     }
