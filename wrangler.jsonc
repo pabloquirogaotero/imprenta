@@ -9,7 +9,7 @@
         "run_worker_first": ["/api/*"] // Only API calls run the Worker code; everything else is a plain static file.
     },
     "kv_namespaces": [
-        { "binding": "USERS", "id": "00000000000000000000000000000000" }
+        { "binding": "USERS", "id": "f2eb23d360c64dffae6e285fc50d8fe3" }
     ],
     "vars": {
         "GITHUB_API": "https://api.github.com"
