@@ -7,7 +7,7 @@ import {
     verifyPassword,
 } from './auth.js';
 import { GitHub, GitHubError } from './github.js';
-import { loadSite, publish, PublishError } from './site.js';
+import { loadSite, publish, PublishError, readImage } from './site.js';
 
 const app = new Hono().basePath('/api');
 
@@ -61,6 +61,25 @@ app.get('/site', async (c) => {
     const site = await loadSite(new GitHub(c.env, user.repo), user);
     return c.json(site, 200, {
         'Cache-Control': 'no-store'
+    });
+});
+
+app.get('/image', async (c) => {
+    const user = c.get('user');
+    const path = c.req.query('path') ?? '';
+    const ref = c.req.query('ref') ?? '';
+    // Only a full 40-character commit sha is accepted as `ref`.
+    if (!/^[0-9a-f]{40}$/.test(ref)) return c.json({ error: 'bad-ref' }, 400);
+    
+    const file = await readImage(new GitHub(c.env, user.repo), path, ref);
+    if (!file) return c.json({ error: 'not-found' }, 404);
+    
+    const types = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif' };
+    const type = types[path.split('.').pop().toLowerCase()];
+    // A file at a given commit can never change, so the browser may cache it for a year.
+    // "private" keeps it out of shared caches, since it came from a logged-in request.
+    return new Response(file.body, {
+        headers: { 'Content-Type': type, 'Cache-Control': 'private, max-age=31536000, immutable' },
     });
 });
 

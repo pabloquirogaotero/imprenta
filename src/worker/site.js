@@ -1,4 +1,4 @@
-import { labelFor, parseConfig, sectionSchema } from '../shared/schema.js';
+import { imagePrefix, isImagePath, labelFor, parseConfig, sectionSchema } from '../shared/schema.js';
 
 const CONFIG_FILE = 'imprenta.config.json';
 
@@ -38,6 +38,12 @@ export async function loadSite(gh, user) {
     const config = await configAt(gh, sha); 
     const { content } = await contentAt(gh, config, sha);
     return { sha, config, content };
+}
+
+export async function readImage(gh, path, ref) {
+    const config = await configAt(gh, ref);
+    if (!isImagePath(path, imagePrefix(config))) return null;
+    return gh.file(`${config.contentDir}/${path}`, ref);
 }
 
 // ---- Publishing. -----------------------------------------------------------
