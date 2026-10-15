@@ -3,7 +3,7 @@
     import { labelFor } from '../../shared/schema.js';
     import { api, ApiError } from '../lib/api.js';
     import { EditorState, setEditor } from '../lib/editor.svelte.js';
-    import { clearFlash } from '../lib/flash.svelte.js';
+    import { showFlash, clearFlash } from '../lib/flash.svelte.js';
     import Field from './Field.svelte';
     
     // The shared state for this editing session; every component below can reach it.
@@ -11,6 +11,7 @@
 
     let loading = $state(true); // waiting for the content
     let loadError = $state(''); // message if loading failed
+    let publishing = $state(false); // a publish is in progress (disables the buttons)
 
     async function load() {
         loading = true;
@@ -24,6 +25,54 @@
             }
         }
         loading = false;
+    }
+
+    async function publish() {
+        clearFlash();
+
+        publishing = true;
+        try {
+            // 1. Send the content; the server makes the commit.
+            const result = await api.publish(editor.publishForm());
+            // 2. Reload from the server: `sha` is now the new commit, ready for the next
+            // publish.
+            editor.load(await api.site());
+            showFlash(
+                'success',
+                result.changed ? '¡Publicado! Tu web se actualizará en uno o dos minutos.' : 'No había cambios que publicar.',
+            );
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (e) {
+            // 3. Something failed. Edits stay in the editor in every case; pick the message.
+            const error = e instanceof ApiError ? e : new ApiError(0, {});
+            if (error.status === 409) {
+                // Conflict: the site changed since she opened the editor (another tab, or you pushed).
+                showFlash(
+                    'warning',
+                    'La web ha cambiado desde que abriste el editor. Recarga para ver la versión más reciente (tus cambios sin publicar se perderán).',
+                    {
+                        label: 'Recargar',
+                        run: () => {
+                            clearFlash();
+                            load();
+                        },
+                    },
+                );
+            } else if (error.status === 401) {
+                // Session expired: App.svelte shows the login screen.
+            } else if (error.status === 0) {
+                showFlash('error', 'No hay conexión. Tus cambios siguen aquí; vuelve a pulsar Publicar cuando tengas internet.');
+            } else {
+                showFlash(
+                    'error',
+                    error.body?.message && error.status === 422
+                        ? error.body.message
+                        : 'Algo ha fallado al publicar. Tus cambios siguen aquí; prueba otra vez en un momento.',
+                );
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        publishing = false;
     }
     
     // onMount runs once, when the editor first appears.
@@ -72,7 +121,11 @@
         <!-- novalidate: turn off the browser's own error bubbles. -->
         <form
           class="flex flex-col gap-8"
-          onsubmit={(e) => e.preventDefault()}
+          onsubmit={(e) => {
+            e.preventDefault(); // don't reload the page; publish() handles it
+            publish();
+            }
+          }
           novalidate
         >
             <!-- One collapsible card per section (Inicio, Acerca de...), built from cms.config.json. -->
@@ -104,10 +157,13 @@
                 {#if editor.dirty}
                     <span class="badge badge-warning badge-soft mr-auto">Tienes cambios sin publicar</span>
                 {/if}
-                <button type="button" class="btn btn-ghost" onclick={discard} disabled={!editor.dirty}>Descartar cambios</button>
+                <button type="button" class="btn btn-ghost" onclick={discard} disabled={!editor.dirty || publishing}>Descartar cambios</button>
                 {#if editor.config.site.url}
                     <a href={editor.config.site.url} target="_blank" rel="noopener" class="btn btn-outline">Ver la web</a>
                 {/if}
+                <button type="submit" class="btn btn-primary" disabled={!editor.dirty || publishing}>
+                    {#if publishing}<span class="loading loading-spinner loading-sm"></span> Publicando…{:else}Publicar{/if}
+                </button>
             </div>
         </form>
     {/if}

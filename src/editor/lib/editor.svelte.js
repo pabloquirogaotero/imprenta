@@ -44,6 +44,12 @@ export class EditorState {
         this.content = content;
         this.original = serialize(this.content);
     }
+
+    publishForm() {
+        const form = new FormData();
+        form.append('payload', JSON.stringify({ baseSha: this.sha, content: JSON.parse(serialize(this.content)) }));
+        return form;
+    }
 }
 
 // Sharing the state through context.
