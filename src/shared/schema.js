@@ -8,7 +8,7 @@ const DIR = /^[-0-9A-Za-z_]+(\/[-0-9A-Za-z_]+)*$/;
 
 // A field definition. z.lazy() is needed because the definition refers to itself:
 // a collection field contains more fields, which may be collections too.
-const fieldConfig = z.lazy(() => {
+const fieldConfig = z.lazy(() =>
     z.object({
         name: z.string().regex(NAME),
         label: z.string().optional(),
@@ -22,7 +22,7 @@ const fieldConfig = z.lazy(() => {
     .refine((f) => f.type !== 'collection' || (f.itemFields?.length ?? 0) > 0, {
         message: 'A collection needs itemFields'
     })
-});
+);
 
 // Rules for the whole config file.
 export const configSchema = z
@@ -50,7 +50,7 @@ export const configSchema = z
 
 // Checks a parsed imprenta.config.json and returns it. Throws if it's malformed.
 export function parseConfig(raw) {
-    return configSchema(raw);
+    return configSchema.parse(raw);
 }
 
 // ---- Small helpers. --------------------------------------------------------
@@ -134,12 +134,12 @@ export function sectionSchema(section, config) {
 }
 
 // An empty value for a field: [] for collections, '' for everything else.
-export function emptyValue() {
+export function emptyValue(field) {
     return field.type === 'collection' ? [] : '';
 }
 
 // A blank collection item, used when the user presses "Añadir…".
-export function emptyItem() {
+export function emptyItem(fields) {
     return Object.fromEntries(fields.map((f) => [f.name, emptyValue(f)]));
 }
 
