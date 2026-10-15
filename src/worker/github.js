@@ -54,6 +54,45 @@ export class GitHub {
         const response = await this.file(path, ref);
         return response ? response.text() : null;
     }
+
+    async commit({ branch, parentSha, message, author, changes }) {
+        // 1. Find the tree (folder listing) of the current commit.
+        const parent = await this.json(`/git/commits/${parentSha}`);
+
+        // 2. Make a new tree: the same as the parent's ("base_tree"), except for our changes.
+        const tree = await this.json('/git/trees', {
+            method: 'POST',
+            body: JSON.stringify({
+                base_tree: parent.tree.sha,
+                tree: changes.map((change) => ({
+                    path: change.path,
+                    mode: '100644', // a normal (non-executable) file
+                    type: 'blob',
+                    ...(change.content !== undefined ? { content: change.content } : { sha: change.sha ?? null }),
+                })),
+            }),
+        });
+
+        // 3. Make a commit pointing at the new tree, with the current commit as its parent.
+        const commit = await this.json('/git/commits', {
+            method: 'POST',
+            body: JSON.stringify({
+                message,
+                tree: tree.sha,
+                parents: [parentSha],
+                author: { ...author, date: new Date().toISOString() },
+            }),
+        });
+
+        // 4. Move the branch to the new commit. Until this line runs, nothing has visibly
+        // changed. force: false makes GitHub refuse if someone else pushed in the meantime,
+        // instead of silently throwing their work away.
+        await this.request(`/git/refs/heads/${encodeURIComponent(branch)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ sha: commit.sha, force: false }),
+        });
+        return commit.sha;
+    }
 }
 
 function encodePath(path) {

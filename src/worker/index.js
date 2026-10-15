@@ -6,8 +6,8 @@ import {
     startSession,
     verifyPassword,
 } from './auth.js';
-import { GitHub } from './github.js';
-import { loadSite } from './site.js'
+import { GitHub, GitHubError } from './github.js';
+import { loadSite, publish, PublishError } from './site.js';
 
 const app = new Hono().basePath('/api');
 
@@ -62,6 +62,27 @@ app.get('/site', async (c) => {
     return c.json(site, 200, {
         'Cache-Control': 'no-store'
     });
+});
+
+app.post('/publish', async (c) => {
+    const user = c.get('user');
+    const form = await c.req.formData();
+    const payload = JSON.parse(String(form.get('payload') ?? '{}'));
+    if (!payload.baseSha || !payload.content) return c.json({ error: 'invalid' }, 400);
+    const result = await publish(new GitHub(c.env, user.repo), user, payload.baseSha, payload.content);
+    return c.json(result);
+});
+
+// ---- Errors. ---------------------------------------------------------------
+app.onError((error, c) => {
+    // Expected publishing problems (409 conflict, 422 invalid...) carry their own answer.
+    if (error instanceof PublishError) return c.json(error.body, error.status);
+    console.error(error);
+    // GitHub refused our token: most likely it expired and needs replacing.
+    if (error instanceof GitHubError && (error.status === 401 || error.status === 403)) {
+        return c.json({ error: 'github-auth', message: 'The GitHub token was rejected or has expired.' }, 502);
+    }
+    return c.json({ error: 'server', message: String(error?.message ?? error) }, 500);
 });
 
 app.notFound((c) => c.json({ error: 'not-found' }, 404));
