@@ -88,7 +88,11 @@ app.post('/publish', async (c) => {
     const form = await c.req.formData();
     const payload = JSON.parse(String(form.get('payload') ?? '{}'));
     if (!payload.baseSha || !payload.content) return c.json({ error: 'invalid' }, 400);
-    const result = await publish(new GitHub(c.env, user.repo), user, payload.baseSha, payload.content);
+    const uploads = new Map();
+    for (const [key, value] of form.entries()) {
+        if (key.startsWith('image:') && typeof value !== 'string') uploads.set(key.slice(6), value);
+    }
+    const result = await publish(new GitHub(c.env, user.repo), user, payload.baseSha, payload.content, uploads);
     return c.json(result);
 });
 

@@ -55,6 +55,14 @@ export class GitHub {
         return response ? response.text() : null;
     }
 
+    async createBlob(bytes) {
+        const blob = await this.json('/git/blobs', {
+            method: 'POST',
+            body: JSON.stringify({ content: base64(bytes), encoding: 'base64' }),
+        });
+        return blob.sha;
+    }
+
     async commit({ branch, parentSha, message, author, changes }) {
         // 1. Find the tree (folder listing) of the current commit.
         const parent = await this.json(`/git/commits/${parentSha}`);
@@ -97,4 +105,12 @@ export class GitHub {
 
 function encodePath(path) {
     return path.split('/').map(encodeURIComponent).join('/');
+}
+
+function base64(bytes) {
+    const arr = new Uint8Array(bytes);
+    let s = '';  for (let i = 0; i < arr.length; i += 0x8000) {
+        s += String.fromCharCode(...arr.subarray(i, i + 0x8000));
+    }
+    return btoa(s);
 }
