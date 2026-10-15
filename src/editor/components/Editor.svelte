@@ -184,13 +184,14 @@
             {/each}
 
             <!-- The action bar, sticky at the bottom of the screen. -->
-            <div class="sticky bottom-0 z-10 -mx-4 px-4 py-3 flex flex-wrap items-center justify-end gap-3 bg-base-200/95 backdrop-blur border-t border-base-300">
+                <div class="sticky bottom-0 z-10 -mx-4 px-4 py-3 flex items-center justify-end gap-2 sm:gap-3 bg-base-200/95 backdrop-blur border-t border-base-300">
                 {#if editor.dirty}
-                    <span class="badge badge-warning badge-soft mr-auto">Tienes cambios sin publicar</span>
+                    <span class="badge badge-warning badge-soft mr-auto whitespace-nowrap"><span class="hidden sm:inline">Tienes cambios sin publicar</span><span class="sm:hidden">Sin publicar</span></span>
                 {/if}
-                <button type="button" class="btn btn-ghost" onclick={discard} disabled={!editor.dirty || publishing}>Descartar cambios</button>
+                <!-- On phones the label shortens to "Descartar" so the bar fits on one line. -->
+                <button type="button" class="btn btn-ghost" onclick={discard} disabled={!editor.dirty || publishing}><span>Descartar<span class="hidden sm:inline">&nbsp;cambios</span></span></button>
                 {#if editor.config.site.url}
-                    <a href={editor.config.site.url} target="_blank" rel="noopener" class="btn btn-outline">Ver la web</a>
+                    <a href={editor.config.site.url} target="_blank" rel="noopener" class="btn btn-outline hidden sm:inline-flex">Ver la web</a>
                 {/if}
                 <button type="submit" class="btn btn-primary" disabled={!editor.dirty || publishing}>
                     {#if publishing}<span class="loading loading-spinner loading-sm"></span> Publicando…{:else}Publicar{/if}
