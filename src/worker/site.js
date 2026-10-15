@@ -15,6 +15,10 @@ export class PublishError extends Error {
 
 // ---- Loading. --------------------------------------------------------------
 
+// The config at a given commit can never change (a commit is a fixed snapshot), so we
+// keep it in memory, keyed by sha, for as long as this Worker instance lives.
+const configCache = new Map();
+
 export async function configAt(gh, sha) {
     const cached = configCache.get(sha);
     if (cached) return cached;
