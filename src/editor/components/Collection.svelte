@@ -1,17 +1,20 @@
 <script>
     import { tick } from 'svelte';
     import { emptyItem, labelFor } from '../../shared/schema.js';
-    import { newKey } from '../lib/editor.svelte.js';
+    import { getEditor, newKey } from '../lib/editor.svelte.js';
     import { sortable } from '../lib/sortable.js';
     import Field from './Field.svelte';
     
     let { field, items, path } = $props();
 
+    const editor = getEditor();
     let list = $state(); // the list's DOM element (filled in by bind:this below)
     
     const itemFields = $derived(field.itemFields);
     const itemLabel = $derived(field.itemLabel ?? 'elemento');
 
+    // The card's thumbnail comes from the item's first image field, if it has one.
+    const thumbnailField = $derived(itemFields.find((f) => f.type === 'image'));
     // The card's title comes from its first required text field, or else its first text field.
     const titleField = $derived(
         itemFields.find((f) => (f.type === 'text' || f.type === 'longtext') && f.required) ??
@@ -87,6 +90,14 @@
                             <circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none" />
                         </svg>
                     </span>
+                    {#if thumbnailField}
+                        {@const src = editor.imageSrc(item[thumbnailField.name])}
+                        {#if src}
+                            <img {src} alt="" class="size-8 rounded object-cover shrink-0" />
+                        {:else}
+                            <div class="size-8 rounded bg-base-200 shrink-0"></div>
+                        {/if}
+                    {/if}
                     <span class="flex-1 text-sm font-medium truncate">{title(item, index)}</span>
                     <!-- Delete. stopPropagation keeps the click from toggling the card too. -->
                     <button

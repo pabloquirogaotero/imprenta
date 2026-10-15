@@ -2,6 +2,7 @@
     import { labelFor } from '../../shared/schema.js';
     import { pathKey } from '../lib/editor.svelte.js';
     import Collection from './Collection.svelte';
+    import ImageField from './ImageField.svelte';
 
     // $props() receives what the parent passed in.
     let { field, record, path } = $props();
@@ -15,7 +16,7 @@
 {#if field.type === 'collection'}
     <Collection {field} items={record[field.name]} path={fieldPath} />
 {:else if field.type === 'image'}
-    <!-- Images come in a later step. -->
+    <ImageField {field} {record} path={fieldPath} />
 {:else}
     <fieldset class="fieldset">
         <legend class="fieldset-legend">

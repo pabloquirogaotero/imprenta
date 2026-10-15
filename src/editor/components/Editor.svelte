@@ -66,7 +66,7 @@
                 showFlash(
                     'error',
                     error.body?.message && error.status === 422
-                        ? error.body.message
+                        ? error.body.message // e.g. "Ese archivo no es una imagen válida."
                         : 'Algo ha fallado al publicar. Tus cambios siguen aquí; prueba otra vez en un momento.',
                 );
             }
