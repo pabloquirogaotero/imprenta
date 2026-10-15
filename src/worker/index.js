@@ -14,6 +14,20 @@ import { loadSite, publish, PublishError, readImage } from './site.js';
 
 const app = new Hono().basePath('/api');
 
+// ---- Origin check (every route). -------------------------------------------
+// Anything that changes data must come from the editor itself. If the browser says the
+// request started on another site, refuse it. This backs up the cookie's SameSite=Strict
+// as protection against CSRF (another site making her browser send requests).
+app.use('*', async (c, next) => {
+    if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
+        const origin = c.req.header('Origin');
+        if (origin && new URL(origin).host !== new URL(c.req.url).host) {
+            return c.json({ error: 'forbidden' }, 403);
+        }
+    } 
+    await next(); // carry on to the next middleware or route
+});
+
 // ---- Public routes. --------------------------------------------------------
 app.post('/login', async (c) => {
     const body = await c.req.json().catch(() => ({}));
