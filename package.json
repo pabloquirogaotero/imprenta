@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite build && concurrently -k -n worker,editor \"wrangler dev --port 8787\" \"vite\"",
     "build": "vite build",
+    "deploy": "vite build && wrangler deploy",
     "user:add": "node scripts/add-user.mjs"
   },
   "dependencies": {
