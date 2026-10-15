@@ -3,6 +3,8 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 const COOKIE = 'cms_session'; // the session cookie's name
 const SHORT_SESSION = 60 * 60 * 12; // 12 hours, in seconds
 const LONG_SESSION = 60 * 60 * 24 * 30; // 30 days, with "Recordarme" ticked
+const MAX_FAILURES = 5; // wrong passwords allowed...
+const LOCKOUT_SECONDS = 15 * 60; // ...per 15 minutes
 
 const encoder = new TextEncoder();
 
@@ -100,4 +102,24 @@ export async function currentUser(c) {
     const data = JSON.parse(new TextDecoder().decode(fromB64Url(payload)));
     if (Date.now() > data.x) return null; // expired
     return getUser(c.env, data.e);
+}
+
+// ---- Login lockout ---------------------------------------------------------
+// Each wrong password increments a counter "fail:<email>" in KV that expires 15 minutes
+// after the last failure. At 5, logins for that email are refused until it expires.
+// KV is "eventually consistent" (a write takes a moment to be visible everywhere), so
+// the count is approximate under very fast attempts. That's fine for this purpose.
+
+export async function isLockedOut(env, email) {
+    const failures = Number((await env.USERS.get(`fail:${email}`)) ?? 0);
+    return failures >= MAX_FAILURES;
+}
+
+export async function recordFailure(env, email) {
+    const failures = Number((await env.USERS.get(`fail:${email}`)) ?? 0) + 1;
+    await env.USERS.put(`fail:${email}`, String(failures), { expirationTtl: LOCKOUT_SECONDS });
+}
+
+export async function clearFailures(env, email) { 
+    await env.USERS.delete(`fail:${email}`);
 }

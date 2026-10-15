@@ -1,8 +1,11 @@
 import { Hono } from 'hono';
 import {
+    clearFailures,
     currentUser,
     endSession,
     getUser,
+    isLockedOut,
+    recordFailure,
     startSession,
     verifyPassword,
 } from './auth.js';
@@ -18,6 +21,9 @@ app.post('/login', async (c) => {
     const password = String(body.password ?? '');
     if (!email || !password) return c.json({ error: 'invalid' }, 400);
 
+    // Too many recent failures for this email: refuse before even checking.
+    if (await isLockedOut(c.env, email)) return c.json({ error: 'locked' }, 429);
+
     const user = await getUser(c.env, email);
     // When the user doesn't exist we still hash a dummy password. Otherwise "no such user"
     // would answer faster than "wrong password", revealing which emails have accounts.
@@ -28,9 +34,11 @@ app.post('/login', async (c) => {
         // The real reason goes to the server log only (the `wrangler dev` terminal, or
         // `wrangler tail` in production). The browser always gets the same generic answer.
         console.warn(user ? `Login failed: wrong password for ${email}` : `Login failed: no user ${email} (create it with npm run user:add)`);
+        await recordFailure(c.env, email);
         return c.json({ error: 'invalid' }, 401);
     }
 
+    await clearFailures(c.env, email);
     await startSession(c, user.email, Boolean(body.remember));
     return c.json({ name: user.name, email: user.email });
 });
