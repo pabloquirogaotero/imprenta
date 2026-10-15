@@ -102,6 +102,13 @@
     // onMount runs once, when the editor first appears.
     onMount(() => {
         load();
+        // Ask "leave this page?" if she closes the tab with unpublished changes.
+        const beforeUnload = (event) => {
+            if (editor.dirty) event.preventDefault();
+        };
+        window.addEventListener('beforeunload', beforeUnload);
+        // The function returned here runs when the editor disappears: tidy up.
+        return () => window.removeEventListener('beforeunload', beforeUnload);
     });
     
     function discard() {
