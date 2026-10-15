@@ -1,11 +1,12 @@
 <script>
     import { labelFor } from '../../shared/schema.js';
-    import { getEditor } from '../lib/editor.svelte.js';
+    import { getEditor, pathKey } from '../lib/editor.svelte.js';
     import { prepareImage } from '../lib/images.js';
 
     let { field, record, path } = $props();
 
     const editor = getEditor();
+    const error = $derived(editor.errors[pathKey(path)]);
     const src = $derived(editor.imageSrc(record[field.name])); // what the thumbnail shows
 
     let input = $state(); // the hidden file input
@@ -19,6 +20,7 @@
         working = true;
         try {
             record[field.name] = editor.addImage(await prepareImage(file));
+            editor.clearError(path);
         } catch {
             problem = 'No se ha podido usar ese archivo. Prueba con una foto en formato JPG o PNG.';
         }
@@ -40,7 +42,7 @@
     }
 </script>
 
-<fieldset class="fieldset">
+<fieldset class="fieldset" data-invalid={error ? 'true' : undefined}>
     <legend class="fieldset-legend">
         {labelFor(field)}
         {#if !field.required}<span class="font-normal text-base-content/50">(opcional)</span>{/if}
@@ -57,9 +59,9 @@
       ondrop={drop}
     >
         {#if src}
-            <img {src} alt="" class="w-32 h-24 rounded-lg object-cover bg-base-200 shrink-0" />
+            <img {src} alt="" class="w-32 h-24 rounded-lg object-cover bg-base-200 shrink-0" class:ring-2={error} class:ring-error={error} />
         {:else}
-            <div class="w-32 h-24 rounded-lg bg-base-200 flex items-center justify-center text-base-content/40 text-sm shrink-0">
+            <div class="w-32 h-24 rounded-lg bg-base-200 flex items-center justify-center text-base-content/40 text-sm shrink-0" class:ring-2={error} class:ring-error={error}>
                 Sin imagen
             </div>
         {/if}
@@ -86,8 +88,8 @@
             {/if}
         </div>
     </div>
-    {#if problem}
-        <p class="text-error text-sm">{problem}</p>
+    {#if error || problem}
+        <p class="text-error text-sm">{problem || error}</p>
     {:else if field.help}
         <p class="label whitespace-normal">{field.help}</p>
     {/if}

@@ -1,8 +1,8 @@
 <script>
-    import { onMount } from 'svelte';
+    import { onMount, tick } from 'svelte';
     import { labelFor } from '../../shared/schema.js';
     import { api, ApiError } from '../lib/api.js';
-    import { EditorState, setEditor } from '../lib/editor.svelte.js';
+    import { EditorState, pathKey, setEditor } from '../lib/editor.svelte.js';
     import { showFlash, clearFlash } from '../lib/flash.svelte.js';
     import Field from './Field.svelte';
     
@@ -27,14 +27,31 @@
         loading = false;
     }
 
+    async function revealFirstError() {
+        await tick(); // wait for Svelte to draw the red fields
+        const field = document.querySelector('[data-invalid="true"]');
+        if (!field) return;
+        for (let el = field.closest('details'); el; el = el.parentElement?.closest('details') ?? null) el.open = true;
+        await tick();
+        field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        field.querySelector('input, textarea, button')?.focus({ preventScroll: true });
+    }
+
     async function publish() {
         clearFlash();
 
+        // 1. Check everything in the browser first, for instant feedback.
+        if (!editor.validate()) {
+            showFlash('error', 'Hay campos por completar. Los tienes marcados en rojo.');
+            revealFirstError();
+            return;
+        }
+
         publishing = true;
         try {
-            // 1. Send the content; the server makes the commit.
+            // 2. Send the content and new images; the server makes the commit.
             const result = await api.publish(editor.publishForm());
-            // 2. Reload from the server: `sha` is now the new commit, ready for the next
+            // 3. Reload from the server: `sha` is now the new commit, ready for the next
             // publish.
             editor.load(await api.site());
             showFlash(
@@ -43,7 +60,7 @@
             );
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (e) {
-            // 3. Something failed. Edits stay in the editor in every case; pick the message.
+            // 4. Something failed. Edits stay in the editor in every case; pick the message.
             const error = e instanceof ApiError ? e : new ApiError(0, {});
             if (error.status === 409) {
                 // Conflict: the site changed since she opened the editor (another tab, or you pushed).
@@ -58,6 +75,13 @@
                         },
                     },
                 );
+            } else if (error.status === 422 && Array.isArray(error.body.issues)) {
+                // The server found invalid fields: mark them in red like the browser check does.
+                const errors = {};
+                for (const issue of error.body.issues) errors[pathKey([issue.section, ...issue.path])] = issue.message;
+                editor.errors = errors;
+                showFlash('error', 'Hay campos por completar. Los tienes marcados en rojo.');
+                revealFirstError();
             } else if (error.status === 401) {
                 // Session expired: App.svelte shows the login screen.
             } else if (error.status === 0) {
@@ -118,7 +142,7 @@
             {/each}
         </nav>
 
-        <!-- novalidate: turn off the browser's own error bubbles. -->
+        <!-- novalidate: the browser's own error bubbles are off; validate() shows ours. -->
         <form
           class="flex flex-col gap-8"
           onsubmit={(e) => {

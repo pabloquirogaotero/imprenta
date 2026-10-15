@@ -1,5 +1,6 @@
 import { getContext, setContext } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
+import { checkValue, imagePrefix } from '../../shared/schema.js';
 import { imageUrl } from './api.js';
 
 // Keys starting with "_" (like each item's `_key`) are for the editor only. This
@@ -34,6 +35,7 @@ export class EditorState {
     sha = $state('');
     config = $state.raw(null);
     content = $state({});
+    errors = $state({});
     pending = new SvelteMap();
     original = $state('');
     dirty = $derived(this.config !== null && serialize(this.content) !== this.original);
@@ -41,6 +43,7 @@ export class EditorState {
         // Free the temporary preview URLs of images that were pending.
         for (const { url } of this.pending.values()) URL.revokeObjectURL(url);
         this.pending.clear();
+        this.errors = {};
         this.sha = data.sha;
         this.config = data.config;
         const content = {};
@@ -62,6 +65,32 @@ export class EditorState {
         if (typeof value !== 'string' || !value) return null;
         if (value.startsWith('new:')) return this.pending.get(value.slice(4))?.url ?? null;
         return imageUrl(value, this.sha);
+    }
+
+    clearError(path) {
+        delete this.errors[pathKey(path)];
+    }
+    
+    validate() {
+        const errors = {};
+        const prefix = imagePrefix(this.config);
+        // Visits every field of a section or item; recurses into collections.
+        const walk = (fields, value, path) => {
+            for (const field of fields) {
+                const v = value?.[field.name];
+                if (field.type === 'collection') {
+                    (Array.isArray(v) ? v : []).forEach((item, i) => walk(field.itemFields, item, [...path, field.name, i]));
+                    continue;
+                }
+                // A "new:" image has no real path yet; it's valid as long as one was picked.
+                const pending = field.type === 'image' && typeof v === 'string' && v.startsWith('new:');
+                const error = pending ? null : checkValue(field, v, prefix);
+                if (error) errors[pathKey([...path, field.name])] = error;
+            }
+        };
+        for (const section of this.config.sections) walk(section.fields, this.content[section.name], [section.name]);
+        this.errors = errors;
+        return Object.keys(errors).length === 0;
     }
 
     publishForm() {

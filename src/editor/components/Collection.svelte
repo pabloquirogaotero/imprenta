@@ -1,7 +1,7 @@
 <script>
     import { tick } from 'svelte';
     import { emptyItem, labelFor } from '../../shared/schema.js';
-    import { getEditor, newKey } from '../lib/editor.svelte.js';
+    import { getEditor, newKey, pathKey } from '../lib/editor.svelte.js';
     import { sortable } from '../lib/sortable.js';
     import Field from './Field.svelte';
     
@@ -27,6 +27,11 @@
         const value = titleField ? String(item[titleField.name] ?? '').split('\n')[0].trim() : '';
         return value || `${capitalize(itemLabel)} ${index + 1}`;
     }
+
+    function hasError(index) {
+        const prefix = pathKey([...path, index]) + '.';
+        return Object.keys(editor.errors).some((key) => key.startsWith(prefix));
+    }
     
     async function add() {
         const key = newKey();
@@ -42,11 +47,14 @@
     function remove(index) {
         if (!confirm(`¿Eliminar «${title(items[index], index)}»?`)) return;
         items.splice(index, 1);
+        // Error messages are stored by position, which just changed, so clear them.
+        editor.errors = {};
     }
 
     function move(from, to) {
         const [item] = items.splice(from, 1);
         items.splice(to, 0, item);
+        editor.errors = {};
     }
 </script>
 
@@ -67,8 +75,10 @@
         -->
         {#each items as item, index (item._key)}
             <details
-            class="js-item bg-base-100 rounded-box shadow-sm group/item"
-            data-key={item._key}
+              class="js-item bg-base-100 rounded-box shadow-sm group/item"
+              class:ring-2={hasError(index)}
+              class:ring-error={hasError(index)}
+              data-key={item._key}
             >
                 <summary class="flex items-center gap-2 p-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                     <!--
